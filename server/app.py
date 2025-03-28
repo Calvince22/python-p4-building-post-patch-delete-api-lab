@@ -23,12 +23,31 @@ def bakeries():
     bakeries = [bakery.to_dict() for bakery in Bakery.query.all()]
     return make_response(  bakeries,   200  )
 
-@app.route('/bakeries/<int:id>')
+@app.route('/bakeries/<int:id>', methods= ['GET', 'PATCH'])
 def bakery_by_id(id):
-
     bakery = Bakery.query.filter_by(id=id).first()
-    bakery_serialized = bakery.to_dict()
-    return make_response ( bakery_serialized, 200  )
+
+    if request.method == 'GET':
+        bakery_serialized = bakery.to_dict()
+        return make_response ( bakery_serialized, 200  )
+
+    elif request.method == 'PATCH':
+       
+        bakery.name = request.form.get('name')  
+        db.session.commit() 
+
+        patched_good_dict = bakery.to_dict() 
+        response = make_response(
+            patched_good_dict, 200  
+        )
+        return response
+    else:
+        response_body = {
+            "message": "This record does not exist in our database. Please try again."
+        }
+        response = make_response(response_body, 404)
+
+        return response
 
 @app.route('/baked_goods/by_price')
 def baked_goods_by_price():
@@ -44,6 +63,60 @@ def most_expensive_baked_good():
     most_expensive = BakedGood.query.order_by(BakedGood.price.desc()).limit(1).first()
     most_expensive_serialized = most_expensive.to_dict()
     return make_response( most_expensive_serialized,   200  )
+
+@app.route('/baked_goods', methods=['POST'])
+def baked_goods():
+    new_goods = BakedGood(
+        name = request.form.get('name'),
+        price = request.form.get('price'),
+        bakery_id = request.form.get('bakery_id')
+    )
+    db.session.add(new_goods)
+    db.session.commit()
+
+    baked_goods_dict = new_goods.to_dict()
+    response = make_response(
+        baked_goods_dict,
+        201
+    )
+
+    return response
+
+@app.route('/baked_goods/<int:id>', methods=['GET', 'DELETE'])
+def baked_goods_by_id(id):
+    baked_goods = BakedGood.query.filter(BakedGood.id == id).first()
+    if baked_goods == None:
+        response_body = {
+            "message": "This record does not exist in our database. Please try again."
+        }
+        response = make_response(response_body, 404)
+
+        return response
+    else:
+        if request.method == 'GET':
+            baked_goods_dict = baked_goods.to_dict()
+            response = make_response(
+                baked_goods_dict,
+                200
+            )
+            return response
+
+        elif request.method == 'DELETE':
+            db.session.delete(baked_goods)
+            db.session.commit()
+            response_body = {
+                "delete_successful": True,
+                "message": "Review deleted."
+            }
+
+            response = make_response(
+                response_body,
+                200
+            )
+
+            return response
+
+
 
 if __name__ == '__main__':
     app.run(port=5555, debug=True)
